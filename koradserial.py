@@ -57,21 +57,18 @@ class OutputMode(State):
 class KoradStatus(object):
     """Class representing the Korad status byte"""
 
-    def __init__(self, status_byte):
-        self.raw = status_byte
-        self.mode = OutputMode(status_byte & 1)
-        self.beep = OnOffState((status_byte >> 4) & 1)
-
-        self.ocp = OnOffState((status_byte >> 5) & 1)
-        self.output = OnOffState((status_byte >> 6) & 1)
-        self.ovp = OnOffState((status_byte >> 7) & 1)
+    def __init__(self, status):
+        self.raw = status
+        self.mode = OutputMode(status[0] == "1")
+        self.ocp = OnOffState(status[2] == "1");
+        self.output = OnOffState(status[1] == "1")
 
     def __repr__(self):
         return '{0:b}'.format(self.raw)
 
     def __str__(self):
-        return 'Output: {0}\nMode: {1}\nOVP: {2}\nOCP: {3}\nBeep: {4}'.format(
-            self.output, self.mode, self.ovp, self.ocp, self.beep)
+        return 'Output: {0}\nMode: {1}\nOCP: {2}\n'.format(
+            self.output, self.mode, self.ocp)
 
 
 class Serial(PySerial):
@@ -83,7 +80,9 @@ class Serial(PySerial):
 
     def send(self, data):
         sleep(self.wait)
-        return self.write(data)
+        n = self.write(data)
+	self.write("\\n");
+	return n;
 
     def send_receive(self, data):
         self.send(data)
@@ -119,7 +118,7 @@ class KoradSerial(object):
 
     @property
     def status(self):
-        return KoradStatus(ord(self.port.send_receive('STATUS?')))
+        return KoradStatus(self.port.send_receive('STATUS?'))
 
     @property
     def voltage_set(self):
@@ -175,7 +174,7 @@ class KoradSerial(object):
     def output(self, state):
         if not isinstance(state, OnOffState):
             state = OnOffState(state)
-        self.port.send('OUT{0}'.format(state.value))
+        self.port.send('OUTPUT{0}'.format(state.value))
 
     @property
     def output_mode(self):
